@@ -1,20 +1,41 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import { db } from "./db";
+import { UpstashRedisAdapter } from "@next-auth/upstash-redis-adapter";
+import { fetchRedis } from "@/helpers/redis";
+
+function getGoogleCredentials() {
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+  if (!clientId || clientId.length === 0) {
+    throw new Error("Missing GOOGLE_CLIENT_ID");
+  }
+
+  if (!clientSecret || clientSecret.length === 0) {
+    throw new Error("Missing GOOGLE_CLIENT_SECRET");
+  }
+
+  return { clientId, clientSecret };
+}
 
 export const authOptions: NextAuthOptions = {
-  providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-  ],
+  adapter: UpstashRedisAdapter(db),
   session: {
     strategy: "jwt",
   },
   pages: {
-    signIn: "/login",
+    signIn: "/auth/login",
   },
+  providers: [
+    GoogleProvider({
+      clientId: getGoogleCredentials().clientId,
+      clientSecret: getGoogleCredentials().clientSecret,
+      httpOptions: {
+        timeout: 40000,
+      },
+    }),
+  ],
   callbacks: {
     async session({ token, session }) {
       if (token) {
@@ -27,16 +48,19 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user }) {
-      const dbUser = await db.user.findFirst({
-        where: { email: token.email },
-      });
+      const dbUserRes = (await fetchRedis("get", `user:${token.id}`)) as
+        | string
+        | null;
 
-      if (!dbUser) {
+      if (!dbUserRes) {
         if (user) {
           token.id = user?.id;
         }
+
         return token;
       }
+
+      const dbUser = JSON.parse(dbUserRes) as User;
 
       return {
         id: dbUser.id,
@@ -44,6 +68,9 @@ export const authOptions: NextAuthOptions = {
         email: dbUser.email,
         picture: dbUser.image,
       };
+    },
+    redirect() {
+      return "/dashboard";
     },
   },
 };
