@@ -1,7 +1,5 @@
 "use client";
 
-import { Metadata } from "next";
-
 import { Button, buttonVariants } from "@/components/ui/button";
 import { useState } from "react";
 import { signIn } from "next-auth/react";
@@ -14,11 +12,6 @@ import { cn } from "@/lib/utils";
 type Inputs = {
   email: string;
   password: string;
-};
-
-export const metadata: Metadata = {
-  title: "Login",
-  description: "Login to your account",
 };
 
 export default function LoginPage() {
