@@ -4,6 +4,10 @@ import { db } from "./db";
 import { UpstashRedisAdapter } from "@next-auth/upstash-redis-adapter";
 import { fetchRedis } from "@/helpers/redis";
 
+/**
+ * TODO: add credentials login to this page
+ */
+
 function getGoogleCredentials() {
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -25,12 +29,19 @@ export const authOptions: NextAuthOptions = {
     strategy: "jwt",
   },
   pages: {
-    signIn: "/auth/login",
+    signIn: "/login",
   },
   providers: [
     GoogleProvider({
       clientId: getGoogleCredentials().clientId,
       clientSecret: getGoogleCredentials().clientSecret,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
+        },
+      },
       httpOptions: {
         timeout: 40000,
       },
